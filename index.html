@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Visitor Counter</title>
+    <title>Free Global Visitor Counter - Auroville Kids</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -168,6 +168,7 @@
             transition: all 0.5s ease;
             position: relative;
             overflow: hidden;
+            min-width: 180px;
         }
         
         #visitor-count::before {
@@ -216,6 +217,60 @@
             100% { transform: translateY(0px); }
         }
         
+        .global-indicator {
+            display: inline-flex;
+            align-items: center;
+            background: #2ecc71;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        
+        .global-indicator i {
+            margin-right: 5px;
+        }
+        
+        .loading {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .realtime-demo {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .realtime-demo h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .demo-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .demo-btn:hover {
+            background: #2980b9;
+        }
+        
         @media (max-width: 768px) {
             .counter-grid {
                 grid-template-columns: 1fr;
@@ -228,67 +283,93 @@
             .counter-value, #visitor-count {
                 font-size: 2.2rem;
             }
+            
+            .demo-controls {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
     <div class="counter-container">
-       
-        
+      
         <div class="visitor-counter">
-            <div class="visitor-title">Website Visitors</div>
-            <div id="visitor-count">1001</div>
+            <div class="visitor-title">Global Website Visitors</div>
+            <div id="visitor-count" class="loading">Loading...</div>
+            <div class="global-indicator">
+                <i class="fas fa-globe-americas"></i> Live Global Counter
+            </div>
             <p>Thank you for visiting our website!</p>
         </div>
-        
         
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize base count from localStorage or start at 1001
-            let baseCount = localStorage.getItem('baseVisitorCount');
-            if (baseCount === null) {
-                baseCount = 1001;
-            } else {
-                baseCount = parseInt(baseCount);
-            }
-
-            // Check if this is a new session (new tab/refresh/device)
-            let sessionVisited = sessionStorage.getItem('visited');
-            if (!sessionVisited) {
-                baseCount += 1; // Increment for new session
-                localStorage.setItem('baseVisitorCount', baseCount);
-                sessionStorage.setItem('visited', 'true');
-                
-                // Add animation effect to the counter
-                const visitorCount = document.getElementById('visitor-count');
-                visitorCount.classList.add('pulse');
-                
-                // Remove animation class after animation completes
-                setTimeout(() => {
-                    visitorCount.classList.remove('pulse');
-                }, 1000);
-            }
-
-            // Update the counter display
+        // Function to update the counter display with animation
+        function updateCounter(value) {
             const visitorCount = document.getElementById('visitor-count');
-            if (visitorCount) {
-                // Animate counting up
-                let currentCount = parseInt(visitorCount.textContent);
-                let targetCount = baseCount;
-                let duration = 2000; // 2 seconds
-                let increment = Math.ceil((targetCount - currentCount) / (duration / 16));
-                
-                let timer = setInterval(() => {
-                    currentCount += increment;
-                    if (currentCount >= targetCount) {
-                        currentCount = targetCount;
-                        clearInterval(timer);
+            
+            // Remove loading text
+            visitorCount.classList.remove('loading');
+            
+            // Add animation effect
+            visitorCount.classList.add('pulse');
+            
+            // Format the number with commas
+            visitorCount.textContent = value.toLocaleString();
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                visitorCount.classList.remove('pulse');
+            }, 1000);
+        }
+        
+        // Function to handle API errors
+        function handleError(error) {
+            console.error('Error with CountAPI:', error);
+            const visitorCount = document.getElementById('visitor-count');
+            visitorCount.textContent = "1024"; // Fallback value
+            visitorCount.classList.remove('loading');
+        }
+        
+        // Initialize the counter when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Using CountAPI - a free service for counting
+            // Create a unique key for your website
+            const namespace = 'aurovillekids';
+            const key = 'website-visitors';
+            
+            // First, try to get the current value
+            fetch(`https://api.countapi.xyz/get/${namespace}/${key}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.value) {
+                        updateCounter(data.value);
+                    } else {
+                        // If no value exists, create one starting at 1024
+                        return fetch(`https://api.countapi.xyz/create?namespace=${namespace}&key=${key}&value=1024`)
+                            .then(response => response.json())
+                            .then(data => {
+                                updateCounter(data.value);
+                            });
                     }
-                    visitorCount.textContent = currentCount;
-                }, 16);
-            }
+                })
+                .catch(error => {
+                    handleError(error);
+                });
+            
+            // Now hit the endpoint to increment the counter
+            // This will track each page visit
+            fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update the counter with the new value
+                    updateCounter(data.value);
+                })
+                .catch(error => {
+                    // We can silently fail here as we already have the initial value
+                    console.error('Error incrementing counter:', error);
+                });
         });
     </script>
 </body>
